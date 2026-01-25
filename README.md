@@ -39,7 +39,7 @@
 | **Serial Communication** | Web Serial API integration for direct hardware interface | ✅ Production |
 | **3D Visualization** | CSS3D rocket orientation with gyroscope-driven transformations | ✅ Production |
 | **Trajectory Mapping** | Real-time GPS tracking with Leaflet.js integration | ✅ Production |
-| **Data Persistence** | IndexedDB storage via Web Workers (non-blocking) | ✅ Production |
+| **Data Persistence** | IndexedDB storage via Web Workers (400Hz sampling) | ✅ Production |
 | **Offline Mode** | Full functionality without internet connectivity | ✅ Production |
 | **Demo Simulation** | Physics-based telemetry generator for testing | ✅ Production |
 | **Export System** | CSV/JSON data export for post-flight analysis | ✅ Production |
@@ -102,7 +102,7 @@ CCTE TRACKER follows an **Offline-First Architecture** to ensure mission reliabi
 │                   PERSISTENCE LAYER                       │
 │  ┌──────────────────────────────────────────────────┐   │
 │  │             IndexedDB (RocketMissionDB)          │   │
-│  │  • Telemetry chunks (batch writes)               │   │
+│  │  • Telemetry chunks at 400Hz (batch writes)      │   │
 │  │  • Mission metadata                               │   │
 │  │  • Trajectory history                             │   │
 │  └──────────────────────────────────────────────────┘   │
@@ -278,9 +278,10 @@ const toggleSimulation = () => {
 
 #### Automatic Storage
 ```typescript
-// IndexedDB stores all telemetry automatically
+// IndexedDB stores all telemetry automatically at 400Hz
 // Location: browser storage → RocketMissionDB
 // Retention: Unlimited (until manual purge)
+// Sampling Rate: 400 samples/second
 ```
 
 #### Database Purge
@@ -505,7 +506,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 ## 👥 Authors
 
-**CCTE Team** - *Centro de Ciencia, Tecnología y Emprendimiento*
+**CCTE Team** - *Club de Ciencias y Tecnologías Espaciales*
 
 - Hardware Team: Flight computer development
 - Software Team: Ground station implementation
