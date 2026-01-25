@@ -1,17 +1,17 @@
 import { useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, CircleMarker, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { MapPin, Crosshair, Navigation } from 'lucide-react';
+import { MapPin, Crosshair, Navigation, Rocket } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import './TrackingMap.css';
 
-// Fix para los iconos de Leaflet en Vite
-// Los iconos por defecto no se cargan correctamente con Webpack/Vite
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+// Ícono de cohete usando lucide-react Rocket
+const rocketIcon = new L.DivIcon({
+  html: `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="rocket-marker"><path d="M4.5 16.5c-1.5 1.25-2 5-2 5s3.75-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>`,
+  className: 'rocket-icon-wrapper',
+  iconSize: [32, 32],
+  iconAnchor: [16, 16],
+  popupAnchor: [0, -16]
 });
 
 interface Position {
@@ -29,6 +29,11 @@ interface TrackingMapProps {
   /** Zoom inicial (opcional) */
   zoom?: number;
 }
+
+// Coordenadas por defecto: FIUNA, Paraguay
+const DEFAULT_CENTER: [number, number] = [-25.3316, -57.5171];
+const MIN_ZOOM = 12;
+const MAX_ZOOM = 16;
 
 /**
  * Componente interno para recentrar el mapa automáticamente
@@ -50,22 +55,33 @@ function MapRecenter({ position }: { position: Position }) {
 }
 
 /**
- * Componente de Mapa para visualización de trayectoria del cohete
+ * Componente para invalidar tamaño del mapa cuando cambia la trayectoria
+ * Soluciona el problema de que las líneas no aparecen hasta cambiar de pestaña
+ */
+function MapUpdater({ trajectoryLength }: { trajectoryLength: number }) {
+  const map = useMap();
+
+  useEffect(() => {
+    // Pequeño delay para asegurar que el DOM se haya actualizado
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 50);
+    
+    return () => clearTimeout(timer);
+  }, [trajectoryLength, map]);
+
+  return null;
+}
+
+/**
+ * Componente de Mapa OFFLINE para visualización de trayectoria del cohete
  * 
- * CONFIGURACIÓN OFFLINE:
- * 1. Descarga tiles de OpenStreetMap para tu zona de lanzamiento
- * 2. Coloca las imágenes en: public/maps/{z}/{x}/{y}.png
- * 3. Estructura esperada: public/maps/14/8234/5678.png (ejemplo)
- * 
- * Herramientas recomendadas para descargar tiles:
- * - Mobile Atlas Creator (MOBAC): https://mobac.sourceforge.io/
- * - AllMapSoft Offline Map Maker
- * 
- * Para generar tiles offline:
- * 1. Define tu área de interés (bounding box)
- * 2. Descarga zooms 10-18 (balance entre detalle y tamaño)
- * 3. Formato de salida: PNG
- * 4. Estructura de carpetas: OSM/{z}/{x}/{y}.png
+ * CONFIGURACIÓN:
+ * - Tiles locales en: public/maps/{z}/{x}/{y}.png
+ * - Rango de zoom: 12-16
+ * - Centro por defecto: FIUNA (-25.3316, -57.5171)
+ * - Fallback: Tile gris si falta imagen
+ * - Ícono personalizado: Logo del proyecto (/logo.png)
  */
 export function TrackingMap({ 
   currentPos, 
@@ -74,101 +90,133 @@ export function TrackingMap({
   zoom = 14 
 }: TrackingMapProps) {
   
-  // Centro inicial del mapa (usar currentPos o un default)
-  const center: [number, number] = currentPos.lat !== 0 && currentPos.lng !== 0
+  // Centro inicial del mapa
+  const center: [number, number] = (currentPos.lat !== 0 || currentPos.lng !== 0)
     ? [currentPos.lat, currentPos.lng]
-    : [-12.0464, -77.0428]; // Lima, Perú como default
+    : DEFAULT_CENTER;
 
   return (
     <div className="tracking-map-container" style={{ height }}>
       <MapContainer
         center={center}
-        zoom={zoom}
+        zoom={Math.max(MIN_ZOOM, Math.min(zoom, MAX_ZOOM))} // Clamp zoom entre límites
+        minZoom={MIN_ZOOM}
+        maxZoom={MAX_ZOOM}
         scrollWheelZoom={true}
         className="tracking-map"
         style={{ height: '100%', width: '100%' }}
+        zoomControl={true}
       >
         {/* 
-          TileLayer Offline
-          IMPORTANTE: Debes colocar los tiles en public/maps/{z}/{x}/{y}.png
+          TileLayer OFFLINE
+          Estructura requerida: public/maps/{z}/{x}/{y}.png
           
-          Ejemplo de estructura:
-          public/
-            maps/
-              14/
-                8234/
-                  5678.png
-                  5679.png
-              15/
-                16468/
-                  11356.png
+          errorTileUrl="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=="
+          Si una tile no existe, se muestra un tile gris (errorTileUrl)
         */}
         <TileLayer
           url="/maps/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          maxZoom={18}
-          minZoom={10}
-          // Fallback a tiles online si no hay tiles locales (solo en desarrollo)
-          errorTileUrl="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; Mapas Offline - FIUNA'
+          maxZoom={MAX_ZOOM}
+          minZoom={MIN_ZOOM}
+          // Tile de error: imagen gris 1x1 en base64
+          errorTileUrl="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=="
+          // Opciones para mejorar rendimiento offline
+          keepBuffer={4}
+          updateWhenZooming={false}
+          updateWhenIdle={true}
         />
 
-        {/* Marcador de Posición Actual */}
+        {/* Línea de Trayectoria Completa (Estela Cyan) */}
+        {trajectory.length > 1 && (
+          <Polyline
+            key={`trajectory-${trajectory.length}`}
+            positions={trajectory.map(pos => [pos.lat, pos.lng])}
+            color="#00ccff"           // Color cyan del tema
+            weight={3}                 // Grosor de línea
+            opacity={0.7}
+            className="trajectory-line"
+            pane="overlayPane"        // Colocar en pane de bajo nivel
+          />
+        )}
+
+        {/* Marcadores de rastro (cada 20 puntos) */}
+        {trajectory
+          .map((pos, originalIndex) => ({ pos, originalIndex }))
+          .filter(({ originalIndex }) => originalIndex % 20 === 0)
+          .map(({ pos, originalIndex }) => (
+            <CircleMarker
+              key={`trail-${originalIndex}-${pos.lat.toFixed(6)}-${pos.lng.toFixed(6)}`}
+              center={[pos.lat, pos.lng]}
+              radius={8}
+              pathOptions={{
+                color: '#ff3366',
+                fillColor: '#ff3366',
+                fillOpacity: 0.6,
+                weight: 2
+              }}
+              className="trajectory-trail-marker"
+            >
+              <Popup>
+                <div className="map-popup">
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#ff3366' }}>
+                    Punto #{originalIndex}
+                  </h4>
+                  <p style={{ margin: '0.25rem 0', fontSize: '0.85rem' }}>
+                    <strong>Lat:</strong> {pos.lat.toFixed(6)}°
+                  </p>
+                  <p style={{ margin: '0.25rem 0', fontSize: '0.85rem' }}>
+                    <strong>Lng:</strong> {pos.lng.toFixed(6)}°
+                  </p>
+                </div>
+              </Popup>
+            </CircleMarker>
+          ))}
+
+        {/* Marcador de Posición Actual (Logo del Proyecto)
+            CRÍTICO: Aparece inmediatamente cuando se reciben coordenadas GPS válidas
+            Usa directamente currentPos para posicionamiento en tiempo real
+        */}
         {(currentPos.lat !== 0 || currentPos.lng !== 0) && (
-          <Marker position={[currentPos.lat, currentPos.lng]}>
+          <Marker 
+            key={`rocket-${currentPos.lat.toFixed(6)}-${currentPos.lng.toFixed(6)}`}
+            position={[currentPos.lat, currentPos.lng]}
+            icon={rocketIcon}
+            zIndexOffset={10000}
+            pane="markerPane"
+          >
             <Popup>
               <div className="map-popup">
-                <h3 className="flex items-center gap-2"><Navigation className="w-4 h-4 text-cyan-400" /> Posición Actual</h3>
+                <h3 className="flex items-center gap-2">
+                  <Navigation className="w-4 h-4 text-cyan-400" /> 
+                  Posición Actual
+                </h3>
                 <p><strong>Latitud:</strong> {currentPos.lat.toFixed(6)}°</p>
                 <p><strong>Longitud:</strong> {currentPos.lng.toFixed(6)}°</p>
+                <p><strong>Puntos registrados:</strong> {trajectory.length}</p>
               </div>
             </Popup>
           </Marker>
         )}
 
-        {/* Línea de Trayectoria */}
-        {trajectory.length > 1 && (
-          <Polyline
-            positions={trajectory.map(pos => [pos.lat, pos.lng])}
-            color="#ff3366"
-            weight={3}
-            opacity={0.8}
-            dashArray="5, 10"
-            pathOptions={{
-              className: 'trajectory-line'
-            }}
-          />
-        )}
-
-        {/* Marcadores de trayectoria histórica cada N puntos */}
-        {trajectory
-          .filter((_, index) => index % 50 === 0) // Mostrar cada 50 puntos
-          .map((pos, index) => (
-            <Marker
-              key={`traj-${index}`}
-              position={[pos.lat, pos.lng]}
-              icon={L.divIcon({
-                className: 'trajectory-marker',
-                html: `<div class="trajectory-dot"></div>`,
-                iconSize: [8, 8],
-              })}
-            />
-          ))}
-
         {/* Componente para recentrar automáticamente */}
         <MapRecenter position={currentPos} />
+        
+        {/* Componente para forzar actualización del mapa */}
+        <MapUpdater trajectoryLength={trajectory.length} />
       </MapContainer>
 
       {/* Indicador de estado */}
       <div className="map-overlay">
         <div className="map-stats">
           <span className="stat-item flex items-center gap-2">
-            <MapPin className="w-4 h-4" /> Puntos: {trajectory.length}
-          </span>
-          <span className="stat-item flex items-center gap-2">
-            <Crosshair className="w-4 h-4" /> Lat: {currentPos.lat.toFixed(6)}°
+            <MapPin className="w-4 h-4" /> Lat: {currentPos.lat.toFixed(6)}°
           </span>
           <span className="stat-item flex items-center gap-2">
             <Crosshair className="w-4 h-4" /> Lng: {currentPos.lng.toFixed(6)}°
+          </span>
+          <span className="stat-item flex items-center gap-2">
+            <Navigation className="w-4 h-4" /> Puntos: {trajectory.length}
           </span>
         </div>
       </div>

@@ -15,20 +15,27 @@ export function Scene3D({ data }: Scene3DProps) {
   useEffect(() => {
     if (!rocketRef.current || !data) return;
 
-    // Umbral de despegue: altitud mayor a 5 metros
-    const hasLaunched = data.mission_state === 2 && data.altitude > 5;
+    // Umbral de despegue: altitud mayor a 5 metros O estado de vuelo activo
+    const hasLaunched = data.mission_state >= 2 && data.altitude > 5;
 
-    // Solo aplicar rotaciones cuando ha despegado
-    const pitch = hasLaunched ? data.gyro_x * 2 : 0;
+    // Aplicar rotaciones del giroscopio (valores en °/s, multiplicamos para efecto visual)
+    // Pitch (cabeceo): rotación alrededor del eje X
+    // INVERTIDO: Restar 90° para compensar orientación del modelo (apunta hacia arriba)
+    const pitch = hasLaunched ? (90 - data.gyro_x * 2) : 0;
+    
+    // Roll (alabeo): rotación alrededor del eje Z
     const roll = hasLaunched ? data.gyro_z * 2 : 0;
+    
+    // Yaw (guiñada): rotación alrededor del eje Y
     const yaw = hasLaunched ? data.gyro_y * 2 : 0;
 
-    // Solo elevar el cohete cuando ha despegado
+    // Elevar el cohete proporcionalmente a la altitud
     const verticalOffset = hasLaunched 
-      ? Math.min(data.altitude * 0.5, 150)
+      ? Math.min(data.altitude * 0.5, 150)  // Máximo 150px de elevación
       : 0;
 
     // Aplicar transformaciones 3D
+    // ORDEN IMPORTANTE: rotateX (pitch) -> rotateY (yaw) -> rotateZ (roll) -> translateY (altura)
     rocketRef.current.style.transform = `
       rotateX(${pitch}deg)
       rotateY(${yaw}deg)
@@ -64,11 +71,11 @@ export function Scene3D({ data }: Scene3DProps) {
               </div>
               <div className="telemetry-card compact">
                 <div className="card-label">Roll</div>
-                <div className="card-value small">{data.gyro_y.toFixed(1)}°/s</div>
+                <div className="card-value small">{data.gyro_z.toFixed(1)}°/s</div>
               </div>
               <div className="telemetry-card compact">
                 <div className="card-label">Yaw</div>
-                <div className="card-value small">{data.gyro_z.toFixed(1)}°/s</div>
+                <div className="card-value small">{data.gyro_y.toFixed(1)}°/s</div>
               </div>
             </div>
             <div className="telemetry-row">

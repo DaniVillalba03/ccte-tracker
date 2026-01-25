@@ -80,6 +80,26 @@ export const AVAILABLE_SENSORS: Record<string, SensorDefinition> = {
   },
   
   // ========== GPS ==========
+  gps_lat: {
+    id: 'gps_lat',
+    name: 'Latitud GPS',
+    unit: '°',
+    min: -90,
+    max: 90,
+    widgetType: 'text',
+    color: '#00ff88'
+  },
+  
+  gps_lng: {
+    id: 'gps_lng',
+    name: 'Longitud GPS',
+    unit: '°',
+    min: -180,
+    max: 180,
+    widgetType: 'text',
+    color: '#00ccff'
+  },
+  
   gps_sats: {
     id: 'gps_sats',
     name: 'Satélites GPS',
@@ -88,7 +108,7 @@ export const AVAILABLE_SENSORS: Record<string, SensorDefinition> = {
     max: 12,
     widgetType: 'text',
     warningThreshold: 4,
-    color: '#00ff88'
+    color: '#ffd700'
   },
   
   gps_alt: {
@@ -227,15 +247,15 @@ export const DEFAULT_LAYOUT = [
   { i: 'altitude', x: 2, y: 0, w: 6, h: 4 },
   { i: 'velocity_z', x: 8, y: 0, w: 4, h: 4 },
   
-  // Fila 2: Aceleración Z + Batería
+  // Fila 2: Aceleración Z + Batería + GPS
   { i: 'acc_z', x: 2, y: 4, w: 6, h: 4 },
   { i: 'battery_voltage', x: 8, y: 4, w: 2, h: 4 },
   { i: 'gps_sats', x: 10, y: 4, w: 2, h: 2 },
   { i: 'packet_id', x: 0, y: 2, w: 2, h: 2 },
   
-  // Fila 3: IMU Acelerómetro
-  { i: 'acc_x', x: 0, y: 4, w: 2, h: 2 },
-  { i: 'acc_y', x: 0, y: 6, w: 2, h: 2 },
+  // Fila 3: Coordenadas GPS
+  { i: 'gps_lat', x: 0, y: 4, w: 2, h: 2 },
+  { i: 'gps_lng', x: 0, y: 6, w: 2, h: 2 },
   
   // Fila 4: IMU Giroscopio
   { i: 'gyro_x', x: 0, y: 8, w: 2, h: 2 },
@@ -249,10 +269,12 @@ export const DEFAULT_LAYOUT = [
   { i: 'lora_rssi', x: 6, y: 8, w: 4, h: 4 },
   { i: 'lora_snr', x: 10, y: 8, w: 2, h: 2 },
   
-  // Fila 6: Ambiente
+  // Fila 6: Ambiente + IMU Acelerómetro
   { i: 'temperature', x: 10, y: 10, w: 2, h: 2 },
   { i: 'pressure', x: 10, y: 6, w: 2, h: 2 },
   { i: 'gps_alt', x: 6, y: 12, w: 2, h: 2 },
+  { i: 'acc_x', x: 0, y: 12, w: 2, h: 2 },
+  { i: 'acc_y', x: 2, y: 12, w: 2, h: 2 },
 ];
 
 /**
@@ -260,7 +282,7 @@ export const DEFAULT_LAYOUT = [
  */
 export const SENSOR_GROUPS = {
   sistema: ['mission_state', 'packet_id'],
-  energia: ['battery_voltage'],
+  energia: ['lat', 'gps_lng', 'gps_battery_voltage'],
   barometro: ['altitude', 'velocity_z', 'pressure', 'temperature'],
   gps: ['gps_sats', 'gps_alt'],
   acelerometro: ['acc_x', 'acc_y', 'acc_z'],

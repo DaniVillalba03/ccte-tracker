@@ -4,7 +4,7 @@ import { TrackingMap } from './components/map/TrackingMap';
 import { Scene3D } from './components/3d/Scene3D';
 import { useSerial } from './hooks/useSerial';
 import { useTrajectory } from './hooks/useTrajectory';
-import { generateFakeTelemetry } from './utils/simulation';
+import { generateFakeTelemetry, resetSimulation } from './utils/simulation';
 import { TelemetryData } from './types/Telemetry';
 import { Rocket, Wifi, WifiOff, Usb, Map, Box, Terminal, ChevronRight, ChevronLeft, AlertTriangle, Play, Pause, Trash2 } from 'lucide-react';
 import './App.css';
@@ -25,7 +25,7 @@ function App() {
   // CRÍTICO: Estado de React para forzar re-renders
   const [telemetryData, setTelemetryData] = useState<TelemetryData | null>(null);
 
-  const { currentPos, trajectory } = useTrajectory(telemetryData);
+  const { currentPos, trajectory, clearTrajectory } = useTrajectory(telemetryData);
   
   const [activeTab, setActiveTab] = useState<TabView>('map');
   const [selectedBaudRate, setSelectedBaudRate] = useState(115200);
@@ -130,6 +130,17 @@ function App() {
       alert('Desconecta el puerto serial antes de iniciar la simulación');
       return;
     }
+    
+    // Si estamos iniciando la simulación (no estaba simulando antes)
+    if (!isSimulating) {
+      // Resetear el estado de la simulación
+      resetSimulation();
+      // Limpiar la trayectoria anterior
+      clearTrajectory();
+      // Resetear la telemetría
+      setTelemetryData(null);
+    }
+    
     setIsSimulating(!isSimulating);
   };
 
