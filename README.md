@@ -506,11 +506,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 ## 👥 Authors
 
-**CCTE Team** - *Club de Ciencias y Tecnologías Espaciales*
-
-- Hardware Team: Flight computer development
-- Software Team: Ground station implementation
-- Launch Operations: Field testing and validation
+**CCTE** - *Club de Ciencias y Tecnologías Espaciales*
 
 ---
 
