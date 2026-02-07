@@ -6,7 +6,7 @@ import { useSerial } from './hooks/useSerial';
 import { useTrajectory } from './hooks/useTrajectory';
 import { generateFakeTelemetry, resetSimulation } from './utils/simulation';
 import { TelemetryData } from './types/Telemetry';
-import { Rocket, Wifi, WifiOff, Usb, Map, Box, Terminal, ChevronRight, ChevronLeft, AlertTriangle, Play, Pause, Trash2 } from 'lucide-react';
+import { Wifi, WifiOff, Usb, Map, Box, Terminal, ChevronRight, ChevronLeft, AlertTriangle, Play, Pause, Trash2 } from 'lucide-react';
 import './App.css';
 
 type TabView = '3d' | 'map' | 'raw';

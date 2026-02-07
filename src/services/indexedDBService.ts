@@ -1,5 +1,5 @@
 import { openDB, IDBPDatabase } from 'idb';
-import { TelemetryData } from '@types/Telemetry';
+import { TelemetryData } from '../types/Telemetry';
 
 const DB_NAME = 'RocketMissionDB';
 const DB_VERSION = 1;
