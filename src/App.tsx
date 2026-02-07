@@ -5,6 +5,7 @@ import { Scene3D } from './components/3d/Scene3D';
 import { useSerial } from './hooks/useSerial';
 import { useTrajectory } from './hooks/useTrajectory';
 import { generateFakeTelemetry, resetSimulation, getMotorInterval } from './utils/simulation';
+import { exportTelemetryToCSV, getDatabaseStats } from './services/exportService';
 import { TelemetryData } from './types/Telemetry';
 import { Wifi, WifiOff, Usb, Map, Box, Terminal, ChevronRight, ChevronLeft, AlertTriangle, Play, Pause, Trash2, Download } from 'lucide-react';
 import './App.css';
@@ -22,7 +23,9 @@ function App() {
     currentBaudRate 
   } = useSerial();
 
-  // CRÍTICO: Estado de React para forzar re-renders
+  // CRÍTICO: Solo guardamos el ÚLTIMO dato (no historial)
+  // React NO debe guardar el historial completo (consume GB de RAM)
+  // El historial se guarda en IndexedDB mediante fire-and-forget
   const [telemetryData, setTelemetryData] = useState<TelemetryData | null>(null);
   
   // NUEVO: Timestamp del último update de UI (Throttle)
@@ -176,19 +179,22 @@ function App() {
       return;
     }
 
-    // Confirmación doble para evitar borrado accidental
-    const confirmed = window.confirm(
-      '¿ESTÁS SEGURO?\n\n' +
-      'Esta acción borrará:\n' +
-      `• ${totalPacketsSaved} paquetes guardados\n` +
-      '• Todo el historial de vuelo\n' +
-      '• Todas las misiones anteriores\n\n' +
-      'ESTA ACCIÓN NO SE PUEDE DESHACER'
-    );
-
-    if (!confirmed) return;
-
+    // Obtener estadísticas antes de borrar (sin cargar datos en RAM)
     try {
+      const stats = await getDatabaseStats();
+      
+      // Confirmación doble para evitar borrado accidental
+      const confirmed = window.confirm(
+        '¿ESTÁS SEGURO?\n\n' +
+        'Esta acción borrará:\n' +
+        `• ${stats.totalRecords.toLocaleString()} paquetes guardados\n` +
+        `• ${stats.estimatedSizeMB.toFixed(2)} MB de datos\n` +
+        '• Todo el historial de vuelo\n\n' +
+        'ESTA ACCIÓN NO SE PUEDE DESHACER'
+      );
+
+      if (!confirmed) return;
+
       console.log('Iniciando purga de base de datos...');
       
       // Borrar la base de datos IndexedDB
@@ -196,22 +202,18 @@ function App() {
       
       deleteRequest.onsuccess = () => {
         console.log('Base de datos borrada exitosamente');
-        
-        // Mostrar notificación
-        alert('Base de datos purgada correctamente.\n\nLa página se recargará para limpiar la memoria.');
-        
-        // Recargar la página para limpiar toda la memoria RAM
+        alert('Base de datos purgada correctamente.\n\nLa página se recargará.');
         window.location.reload();
       };
 
       deleteRequest.onerror = (event) => {
         console.error('Error al borrar la base de datos:', event);
-        alert('Error al purgar la base de datos.\n\nIntenta cerrar todas las pestañas de esta aplicación y vuelve a intentarlo.');
+        alert('Error al purgar la base de datos.');
       };
 
       deleteRequest.onblocked = () => {
         console.warn('La base de datos está bloqueada por otra pestaña');
-        alert('La base de datos está siendo usada por otra pestaña.\n\nCierra todas las pestañas de esta aplicación y vuelve a intentarlo.');
+        alert('La base de datos está siendo usada por otra pestaña.\n\nCierra todas las pestañas de esta aplicación.');
       };
 
     } catch (error) {
@@ -220,48 +222,30 @@ function App() {
     }
   };
 
-  // NUEVO: Exportar datos completos desde IndexedDB
-  // Genera CSV con todos los paquetes guardados a 400Hz
+  // OPTIMIZADO: Exportar datos con chunked reading (no consume RAM)
+  // Lee de 5,000 en 5,000 registros para evitar explosión de memoria
   const handleExportData = async () => {
     try {
-      // Importar dinámicamente el servicio de exportación
-      const { getAllMissionData } = await import('./services/indexedDBService');
+      // Obtener estadísticas antes de exportar (sin cargar datos en RAM)
+      const stats = await getDatabaseStats();
       
-      alert('Generando archivo CSV...\n\nEsto puede tomar unos segundos si hay muchos datos.');
-      
-      const allData = await getAllMissionData();
-      
-      if (allData.length === 0) {
+      if (stats.totalRecords === 0) {
         alert('No hay datos para exportar.\n\nRealiza un vuelo primero.');
         return;
       }
-
-      // Generar CSV
-      const firstRecord = allData[0];
-      if (!firstRecord) {
-        alert('Error: datos corruptos.');
-        return;
-      }
       
-      const headers = Object.keys(firstRecord).join(',');
-      const rows = allData.map(row => 
-        Object.values(row).map(val => 
-          typeof val === 'number' ? val.toFixed(6) : val
-        ).join(',')
+      const confirmed = window.confirm(
+        `Exportar ${stats.totalRecords.toLocaleString()} registros a CSV?\n\n` +
+        `Tamaño estimado: ${stats.estimatedSizeMB.toFixed(2)} MB\n` +
+        `Esto puede tomar unos segundos.`
       );
       
-      const csv = [headers, ...rows].join('\n');
+      if (!confirmed) return;
       
-      // Descargar archivo
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `mission_data_${Date.now()}.csv`;
-      link.click();
-      URL.revokeObjectURL(url);
+      // Exportar usando chunked reading (optimizado para RAM)
+      await exportTelemetryToCSV();
       
-      alert(`Exportación completa!\n\n${allData.length} paquetes exportados.`);
+      alert(`Exportación completa!\n\n${stats.totalRecords.toLocaleString()} paquetes exportados.`);
       
     } catch (error) {
       console.error('Error al exportar:', error);
