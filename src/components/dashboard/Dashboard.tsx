@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Responsive as ResponsiveGridLayout } from 'react-grid-layout';
-import { SensorWidget } from '@components/widgets/SensorWidget';
-import { AVAILABLE_SENSORS, DEFAULT_LAYOUT } from '@config/sensors';
+import { SensorWidget } from '../widgets/SensorWidget';
+import { AVAILABLE_SENSORS, DEFAULT_LAYOUT } from '../../config/sensors';
 import { TelemetryData } from '../../types/Telemetry';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
