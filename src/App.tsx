@@ -220,6 +220,7 @@ function App() {
   };
 
   // NUEVO: Exportar datos completos desde IndexedDB
+  // Genera CSV con todos los paquetes guardados a 400Hz
   const handleExportData = async () => {
     try {
       // Importar dinámicamente el servicio de exportación
