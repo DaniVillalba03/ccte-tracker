@@ -4,7 +4,7 @@ import { TrackingMap } from './components/map/TrackingMap';
 import { Scene3D } from './components/3d/Scene3D';
 import { useSerial } from './hooks/useSerial';
 import { useTrajectory } from './hooks/useTrajectory';
-import { generateFakeTelemetry, resetSimulation } from './utils/simulation';
+import { generateFakeTelemetry, resetSimulation, getMotorInterval } from './utils/simulation';
 import { TelemetryData } from './types/Telemetry';
 import { Wifi, WifiOff, Usb, Map, Box, Terminal, ChevronRight, ChevronLeft, AlertTriangle, Play, Pause, Trash2, Download } from 'lucide-react';
 import './App.css';
@@ -69,40 +69,41 @@ function App() {
     };
   }, []);
 
-  // ===== MODO SIMULACIÓN: Generar datos falsos =====
+  // ===== MODO SIMULACIÓN A 400Hz =====
   useEffect(() => {
     if (!isSimulating) return;
 
-    // Iniciar timer
     simulationStartTimeRef.current = Date.now();
-
+    
+    // MOTOR DE 400Hz: Genera datos cada 2.5ms
+    const motorInterval = getMotorInterval(); // 2.5ms
+    
     const interval = setInterval(() => {
       const elapsedSeconds = (Date.now() - simulationStartTimeRef.current) / 1000;
       
-      // Generar datos de telemetría falsos
-      const fakeData = generateFakeTelemetry(elapsedSeconds);
+      // Generar paquete de telemetría a 400Hz
+      const { data, needsUIUpdate } = generateFakeTelemetry(elapsedSeconds);
       
-      // CRÍTICO: Actualizar estado de React para forzar re-render
-      setTelemetryData(fakeData);
-      
-      // Actualizar referencia para UI
-      latestDataRef.current = fakeData;
-      
-      // Enviar al Worker para persistencia
+      // CRÍTICO: Guardar SIEMPRE en DB (400Hz)
       dbWorkerRef.current?.postMessage({
         type: 'SAVE_CHUNK',
-        payload: fakeData
+        payload: data
       });
+      
+      // THROTTLE: Actualizar UI solo si han pasado 100ms (10Hz)
+      if (needsUIUpdate) {
+        setTelemetryData(data);
+        latestDataRef.current = data;
+      }
 
       // Detener simulación después de 3 minutos
       if (elapsedSeconds > 180) {
         setIsSimulating(false);
       }
-    }, 100); // 10Hz (100ms)
+    }, motorInterval); // 2.5ms = 400Hz
 
     return () => {
       clearInterval(interval);
-      // Flush final al detener
       dbWorkerRef.current?.postMessage({ type: 'FLUSH' });
     };
   }, [isSimulating, latestDataRef]);

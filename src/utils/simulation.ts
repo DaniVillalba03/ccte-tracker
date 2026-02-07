@@ -1,9 +1,19 @@
 import { TelemetryData, MissionState } from '../types/Telemetry';
 
 /**
- * Configuración de la simulación con física realista
+ * CONFIGURACIÓN DE ALTA FRECUENCIA (400Hz)
+ * Motor: 2.5ms por tick
+ * Visualización: 100ms throttle (10Hz)
  */
 const SIMULATION_CONFIG = {
+  // Frecuencias
+  MOTOR_FREQUENCY_HZ: 400,        // Generación de datos: 400Hz
+  UI_FREQUENCY_HZ: 10,             // Actualización visual: 10Hz
+  
+  // Intervalos calculados
+  MOTOR_INTERVAL_MS: 1000 / 400,   // 2.5ms
+  UI_INTERVAL_MS: 1000 / 10,       // 100ms
+  
   // Duración total de la misión
   MISSION_DURATION: 300, // 5 minutos
   
@@ -67,13 +77,19 @@ class SimulationState {
   // Fase actual
   currentPhase: MissionState = MissionState.IDLE;
   
-  // Tiempo del último update (para cálculo delta)
-  lastUpdateTime: number = 0;
+  // Tiempo del último update físico (para cálculo delta)
+  lastPhysicsUpdateTime: number = 0;
+  
+  // NUEVO: Timestamp del último update visual
+  lastUIUpdateTime: number = 0;
   
   // Flags de eventos
   motorBurnout: boolean = false;
   parachuteDeployed: boolean = false;
   hasLanded: boolean = false;
+  
+  // NUEVO: Contador de paquetes generados (para debugging)
+  packetCounter: number = 0;
   
   reset() {
     this.altitude = 0;
@@ -85,29 +101,39 @@ class SimulationState {
     this.roll = 0;
     this.yaw = 0;
     this.currentPhase = MissionState.IDLE;
-    this.lastUpdateTime = 0;
+    this.lastPhysicsUpdateTime = 0;
+    this.lastUIUpdateTime = 0;
     this.motorBurnout = false;
     this.parachuteDeployed = false;
     this.hasLanded = false;
+    this.packetCounter = 0;
   }
 }
 
 // Instancia global del estado (persiste entre frames)
 const simState = new SimulationState();
 
-
 /**
- * Genera telemetría realista basada en modelo de física de estados
+ * MOTOR DE SIMULACIÓN A 400Hz
+ * 
+ * Genera telemetría realista basada en modelo de física de estados.
+ * Este método se ejecuta cada 2.5ms (400Hz) y actualiza el estado físico.
  * 
  * @param elapsedSeconds - Tiempo desde el inicio de la simulación
- * @returns Datos de telemetría con física realista
+ * @returns Objeto con datos de telemetría y flag needsUIUpdate
  */
-export function generateFakeTelemetry(elapsedSeconds: number): TelemetryData {
-  const { PHYSICS, LAUNCH_SITE, PHASES } = SIMULATION_CONFIG;
+export function generateFakeTelemetry(elapsedSeconds: number): {
+  data: TelemetryData;
+  needsUIUpdate: boolean;
+} {
+  const { PHYSICS, LAUNCH_SITE, PHASES, UI_INTERVAL_MS } = SIMULATION_CONFIG;
   
-  // Delta time (segundos desde último frame)
-  const dt = elapsedSeconds - simState.lastUpdateTime;
-  simState.lastUpdateTime = elapsedSeconds;
+  // Delta time (segundos desde último frame FÍSICO)
+  const dt = elapsedSeconds - simState.lastPhysicsUpdateTime;
+  simState.lastPhysicsUpdateTime = elapsedSeconds;
+  
+  // Incrementar contador de paquetes
+  simState.packetCounter++;
   
   // ==================== MÁQUINA DE ESTADOS ====================
   
@@ -232,17 +258,17 @@ export function generateFakeTelemetry(elapsedSeconds: number): TelemetryData {
     simState.currentPhase = MissionState.LANDED;
     simState.altitude = 0;
     simState.velocity = 0;
-    simState.acceleration = 1; // 1G en reposo
+    simState.acceleration = 0;
     simState.pitch = 0; // Horizontal en el suelo
     simState.roll = 0;
     simState.yaw = 0;
   }
   
-  // ==================== GENERAR TELEMETRÍA ====================
+  // ==================== GENERAR PAQUETE DE TELEMETRÍA ====================
   
-  return {
+  const telemetryData: TelemetryData = {
     // Sistema
-    packet_id: Math.floor(elapsedSeconds * 10),
+    packet_id: simState.packetCounter,
     mission_state: simState.currentPhase,
     mission_time: elapsedSeconds,
     timestamp: Date.now(),
@@ -277,34 +303,67 @@ export function generateFakeTelemetry(elapsedSeconds: number): TelemetryData {
     mag_y: -10 + Math.cos(elapsedSeconds * 0.4) * 2,
     mag_z: -18 + Math.sin(elapsedSeconds * 0.2),
     
-    // LoRa (señal degrada con altitud)
-    lora_rssi: -65 - (simState.altitude / 100) + (Math.random() - 0.5) * 5,
-    lora_snr: 10 - (simState.altitude / 500) + (Math.random() - 0.5) * 2,
+    // LoRa (calidad de señal simulada)
+    lora_rssi: -60 - Math.random() * 20, // dBm
+    lora_snr: 8 + Math.random() * 4,     // dB
+  };
+  
+  // ==================== DETERMINAR SI NECESITA UPDATE VISUAL ====================
+  
+  const now = Date.now();
+  const timeSinceLastUIUpdate = now - simState.lastUIUpdateTime;
+  const needsUIUpdate = timeSinceLastUIUpdate >= UI_INTERVAL_MS;
+  
+  if (needsUIUpdate) {
+    simState.lastUIUpdateTime = now;
+  }
+  
+  return {
+    data: telemetryData,
+    needsUIUpdate
   };
 }
 
+/**
+ * Resetea el estado de la simulación (útil para reiniciar)
+ */
+export function resetSimulation() {
+  simState.reset();
+}
 
 /**
  * Calcula presión atmosférica según altitud (fórmula barométrica)
  */
 function calculatePressure(altitude: number): number {
-  const P0 = 1013.25; // hPa al nivel del mar
-  const H = 8500; // Altura de escala atmosférica
-  return P0 * Math.exp(-altitude / H);
+  const P0 = 101325; // Presión al nivel del mar (Pa)
+  const T0 = 288.15; // Temperatura al nivel del mar (K)
+  const g = 9.80665; // Gravedad
+  const M = 0.0289644; // Masa molar del aire (kg/mol)
+  const R = 8.31432; // Constante de gases ideales
+  const L = 0.0065; // Gradiente térmico (K/m)
+  
+  return P0 * Math.pow(1 - (L * altitude) / T0, (g * M) / (R * L));
 }
 
 /**
- * Calcula temperatura según altitud (gradiente térmico)
+ * Calcula temperatura según altitud (gradiente térmico atmosférico)
  */
 function calculateTemperature(altitude: number): number {
-  const T0 = 26; // °C en Asunción
-  const gradient = -6.5 / 1000; // °C/metro
-  return T0 + gradient * altitude;
+  const T0 = 25; // Temperatura al nivel del mar (°C)
+  const lapseRate = 6.5; // °C cada 1000m
+  return T0 - (altitude / 1000) * lapseRate;
 }
 
 /**
- * Reinicia el estado de la simulación (útil para múltiples runs)
+ * NUEVA: Obtener frecuencia del motor (Hz)
  */
-export function resetSimulation(): void {
-  simState.reset();
+export function getMotorFrequency(): number {
+  return SIMULATION_CONFIG.MOTOR_FREQUENCY_HZ;
+}
+
+/**
+ * NUEVA: Obtener intervalo del motor (ms)
+ */
+export function getMotorInterval(): number {
+  return SIMULATION_CONFIG.MOTOR_INTERVAL_MS;
 }
