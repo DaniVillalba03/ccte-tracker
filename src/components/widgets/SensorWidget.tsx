@@ -167,7 +167,7 @@ export function SensorWidget({ sensorId, data }: SensorWidgetProps) {
                   stroke="rgba(255, 255, 255, 0.1)"
                   strokeWidth="20"
                 />
-                {percentage > 0 && (
+                {currentValue !== 0 && (
                   <circle
                     cx="100"
                     cy="100"
