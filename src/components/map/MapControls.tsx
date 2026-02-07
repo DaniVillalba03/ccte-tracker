@@ -37,14 +37,14 @@ export function MapControls({
         onClick={onResetView}
         title="Recentrar"
       >
-        🎯
+        ⊙
       </button>
       <button 
         className={`map-control-btn ${showTrajectory ? 'active' : ''}`}
         onClick={onToggleTrajectory}
         title="Mostrar/Ocultar Trayectoria"
       >
-        📍
+        ●
       </button>
     </div>
   );

@@ -151,52 +151,52 @@ function App() {
   const handleClearDatabase = async () => {
     // Prevenir purga durante conexión activa o simulación
     if (isConnected || isSimulating) {
-      alert('⚠️ OPERACIÓN BLOQUEADA\n\nDebes desconectar el puerto serial o detener la simulación antes de purgar la base de datos.');
+      alert('OPERACIÓN BLOQUEADA\n\nDebes desconectar el puerto serial o detener la simulación antes de purgar la base de datos.');
       return;
     }
 
     // Confirmación doble para evitar borrado accidental
     const confirmed = window.confirm(
-      '⚠️ ¿ESTÁS SEGURO?\n\n' +
+      '¿ESTÁS SEGURO?\n\n' +
       'Esta acción borrará:\n' +
       '• Todo el historial de vuelo guardado\n' +
       '• Todas las misiones anteriores\n' +
       '• Los datos de telemetría almacenados\n\n' +
       'La página se recargará automáticamente.\n\n' +
-      '⚠️ ESTA ACCIÓN NO SE PUEDE DESHACER ⚠️'
+      'ESTA ACCIÓN NO SE PUEDE DESHACER'
     );
 
     if (!confirmed) return;
 
     try {
-      console.log('🗑️ Iniciando purga de base de datos...');
+      console.log('Iniciando purga de base de datos...');
       
       // Borrar la base de datos IndexedDB
       const deleteRequest = indexedDB.deleteDatabase('RocketMissionDB');
       
       deleteRequest.onsuccess = () => {
-        console.log('✅ Base de datos borrada exitosamente');
+        console.log('Base de datos borrada exitosamente');
         
         // Mostrar notificación
-        alert('✅ Base de datos purgada correctamente.\n\nLa página se recargará para limpiar la memoria.');
+        alert('Base de datos purgada correctamente.\n\nLa página se recargará para limpiar la memoria.');
         
         // Recargar la página para limpiar toda la memoria RAM
         window.location.reload();
       };
 
       deleteRequest.onerror = (event) => {
-        console.error('❌ Error al borrar la base de datos:', event);
-        alert('❌ Error al purgar la base de datos.\n\nIntenta cerrar todas las pestañas de esta aplicación y vuelve a intentarlo.');
+        console.error('Error al borrar la base de datos:', event);
+        alert('Error al purgar la base de datos.\n\nIntenta cerrar todas las pestañas de esta aplicación y vuelve a intentarlo.');
       };
 
       deleteRequest.onblocked = () => {
-        console.warn('⚠️ La base de datos está bloqueada por otra pestaña');
-        alert('⚠️ La base de datos está siendo usada por otra pestaña.\n\nCierra todas las pestañas de esta aplicación y vuelve a intentarlo.');
+        console.warn('La base de datos está bloqueada por otra pestaña');
+        alert('La base de datos está siendo usada por otra pestaña.\n\nCierra todas las pestañas de esta aplicación y vuelve a intentarlo.');
       };
 
     } catch (error) {
-      console.error('❌ Error inesperado al purgar:', error);
-      alert('❌ Error inesperado al purgar la base de datos.');
+      console.error('Error inesperado al purgar:', error);
+      alert('Error inesperado al purgar la base de datos.');
     }
   };
 

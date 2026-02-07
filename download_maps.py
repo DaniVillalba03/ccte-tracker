@@ -25,7 +25,7 @@ def download_tile(z, x, y):
     path = f"public/maps/{z}/{x}/{y}.png"
     
     if os.path.exists(path):
-        print(f"✅ Ya existe: {z}/{x}/{y}")
+        print(f"Ya existe: {z}/{x}/{y}")
         return
 
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -36,15 +36,15 @@ def download_tile(z, x, y):
         if response.status_code == 200:
             with open(path, 'wb') as f:
                 f.write(response.content)
-            print(f"⬇️  Descargado: {z}/{x}/{y}")
+            print(f"Descargado: {z}/{x}/{y}")
         else:
-            print(f"❌ Error {response.status_code}: {url}")
+            print(f"Error {response.status_code}: {url}")
     except Exception as e:
-        print(f"⚠️ Error: {e}")
+        print(f"Error: {e}")
     
     time.sleep(0.05) # Un poco más rápido (50ms)
 
-print(f"🚀 DESCARGANDO MAPA DE FIUNA (Radio: {RADIO_KM}km)...")
+print(f"DESCARGANDO MAPA DE FIUNA (Radio: {RADIO_KM}km)...")
 
 for z in range(ZOOM_MIN, ZOOM_MAX + 1):
     center_x, center_y = deg2num(LAT, LON, z)
@@ -60,4 +60,4 @@ for z in range(ZOOM_MIN, ZOOM_MAX + 1):
         for y in range(center_y - range_tiles, center_y + range_tiles + 1):
             download_tile(z, x, y)
 
-print("\n✅ ¡MAPA DE SAN LORENZO LISTO! Verifica la carpeta /public/maps")
+print("\n¡MAPA DE SAN LORENZO LISTO! Verifica la carpeta /public/maps")

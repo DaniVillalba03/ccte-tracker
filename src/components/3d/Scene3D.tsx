@@ -60,7 +60,7 @@ export function Scene3D({ data }: Scene3DProps) {
       {data && (
         <div className="telemetry-panel">
           <div className="panel-header">
-            <span className="panel-icon">⚙</span>
+            <span className="panel-icon">⚙️</span>
           </div>
           
           <div className="telemetry-grid">

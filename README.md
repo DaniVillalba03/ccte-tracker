@@ -17,11 +17,11 @@
 
 ---
 
-## 📋 Overview
+## Overview
 
 **CCTE TRACKER** is a high-performance, offline-first ground station control system designed for real-time rocket telemetry acquisition, processing, and visualization. Built with modern web technologies, it provides mission-critical data monitoring capabilities with industrial-grade reliability.
 
-### 🎯 Key Objectives
+### Key Objectives
 
 - **Zero-Latency Data Acquisition**: Serial port communication at up to 230,400 baud
 - **Offline-First Persistence**: IndexedDB integration with Web Workers for non-blocking I/O
@@ -30,21 +30,21 @@
 
 ---
 
-## ✨ Features
+## Features
 
-### 🚀 Core Capabilities
+### Core Capabilities
 
 | Feature | Description | Status |
 |---------|-------------|--------|
-| **Serial Communication** | Web Serial API integration for direct hardware interface | ✅ Production |
-| **3D Visualization** | CSS3D rocket orientation with gyroscope-driven transformations | ✅ Production |
-| **Trajectory Mapping** | Real-time GPS tracking with Leaflet.js integration | ✅ Production |
-| **Data Persistence** | IndexedDB storage via Web Workers (400Hz sampling) | ✅ Production |
-| **Offline Mode** | Full functionality without internet connectivity | ✅ Production |
-| **Demo Simulation** | Physics-based telemetry generator for testing | ✅ Production |
-| **Export System** | CSV/JSON data export for post-flight analysis | ✅ Production |
+| **Serial Communication** | Web Serial API integration for direct hardware interface | Production |
+| **3D Visualization** | CSS3D rocket orientation with gyroscope-driven transformations | Production |
+| **Trajectory Mapping** | Real-time GPS tracking with Leaflet.js integration | Production |
+| **Data Persistence** | IndexedDB storage via Web Workers (400Hz sampling) | Production |
+| **Offline Mode** | Full functionality without internet connectivity | Production |
+| **Demo Simulation** | Physics-based telemetry generator for testing | Production |
+| **Export System** | CSV/JSON data export for post-flight analysis | Production |
 
-### 📊 Telemetry Monitoring
+### Telemetry Monitoring
 
 - **Inertial Measurement Unit (IMU)**
   - 3-axis gyroscope (°/s)
@@ -68,7 +68,7 @@
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ### System Design Philosophy
 
@@ -172,7 +172,7 @@ Hardware Serial Port
 
 ---
 
-## 🚀 Installation
+## Installation
 
 ### Prerequisites
 
@@ -301,7 +301,7 @@ const handleClearDatabase = async () => {
 
 ---
 
-## 🔧 Configuration
+## Configuration
 
 ### Serial Port Settings
 
@@ -341,19 +341,19 @@ const TILE_LAYER = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
 ---
 
-## 📊 Performance Metrics
+## Performance Metrics
 
 ### Benchmarks (Chrome 120, Intel i7-10700K)
 
 | Metric | Value | Target | Status |
 |--------|-------|--------|--------|
-| Initial Load Time | 1.2s | < 2s | ✅ |
-| First Contentful Paint | 0.8s | < 1s | ✅ |
-| Time to Interactive | 1.5s | < 3s | ✅ |
-| UI Frame Rate | 60 FPS | 60 FPS | ✅ |
-| Serial Data Latency | < 10ms | < 50ms | ✅ |
-| IndexedDB Write Speed | 10k records/s | > 1k/s | ✅ |
-| Memory Usage (Active) | ~150MB | < 300MB | ✅ |
+| Initial Load Time | 1.2s | < 2s | Pass |
+| First Contentful Paint | 0.8s | < 1s | Pass |
+| Time to Interactive | 1.5s | < 3s | Pass |
+| UI Frame Rate | 60 FPS | 60 FPS | Pass |
+| Serial Data Latency | < 10ms | < 50ms | Pass |
+| IndexedDB Write Speed | 10k records/s | > 1k/s | Pass |
+| Memory Usage (Active) | ~150MB | < 300MB | Pass |
 
 ### Optimization Techniques
 
@@ -365,7 +365,7 @@ const TILE_LAYER = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
 ---
 
-## 🛠️ Development
+## Development
 
 ### Project Structure
 
@@ -433,7 +433,7 @@ pnpm test:e2e
 
 ---
 
-## 🔒 Security & Privacy
+## Security & Privacy
 
 ### Data Storage
 - **All data stored locally** in browser IndexedDB
@@ -447,7 +447,7 @@ pnpm test:e2e
 
 ---
 
-## 📄 Protocol Specification
+## Protocol Specification
 
 ### Telemetry Packet Format (CSV)
 
@@ -479,7 +479,7 @@ mission_state,battery_voltage,packet_id
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please follow these guidelines:
 
@@ -498,19 +498,19 @@ Contributions are welcome! Please follow these guidelines:
 
 ---
 
-## 📜 License
+## License
 
 This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## 👥 Authors
+## Authors
 
 **CCTE** - *Club de Ciencias y Tecnologías Espaciales*
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **Web Serial API** - Chrome DevTools Team
 - **Leaflet.js** - Vladimir Agafonkin
@@ -519,7 +519,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 ---
 
-## 📞 Support
+## Support
 
 For questions, issues, or collaboration:
 
@@ -530,8 +530,8 @@ For questions, issues, or collaboration:
 
 <div align="center">
 
-**Built with ❤️ for the aerospace community**
+**Built for the aerospace community**
 
-⭐ **Star this repo** if you find it useful!
+**Star this repo** if you find it useful!
 
 </div>

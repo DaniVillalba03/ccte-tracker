@@ -49,6 +49,9 @@ coverage
 *.tmp
 *.temp
 
+# Vercel
+.vercel
+
 # OS files
 Thumbs.db
 .DS_Store
