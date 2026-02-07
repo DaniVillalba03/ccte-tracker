@@ -167,18 +167,20 @@ export function SensorWidget({ sensorId, data }: SensorWidgetProps) {
                   stroke="rgba(255, 255, 255, 0.1)"
                   strokeWidth="20"
                 />
-                <circle
-                  cx="100"
-                  cy="100"
-                  r="80"
-                  fill="none"
-                  stroke={isWarning ? '#ff3366' : (config.color || '#00ff88')}
-                  strokeWidth="20"
-                  strokeDasharray={`${(percentage / 100) * 502.4} 502.4`}
-                  strokeLinecap="round"
-                  transform="rotate(-90 100 100)"
-                  className="gauge-progress"
-                />
+                {percentage > 0 && (
+                  <circle
+                    cx="100"
+                    cy="100"
+                    r="80"
+                    fill="none"
+                    stroke={isWarning ? '#ff3366' : (config.color || '#00ff88')}
+                    strokeWidth="20"
+                    strokeDasharray={`${(percentage / 100) * 502.4} 502.4`}
+                    strokeLinecap="round"
+                    transform="rotate(-90 100 100)"
+                    className="gauge-progress"
+                  />
+                )}
               </svg>
               <div className="gauge-value">
                 <span className="gauge-number">{currentValue.toFixed(1)}</span>
