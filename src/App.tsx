@@ -6,7 +6,7 @@ import { useSerial } from './hooks/useSerial';
 import { useTrajectory } from './hooks/useTrajectory';
 import { generateFakeTelemetry, resetSimulation } from './utils/simulation';
 import { TelemetryData } from './types/Telemetry';
-import { Wifi, WifiOff, Usb, Map, Box, Terminal, ChevronRight, ChevronLeft, AlertTriangle, Play, Pause, Trash2 } from 'lucide-react';
+import { Wifi, WifiOff, Usb, Map, Box, Terminal, ChevronRight, ChevronLeft, AlertTriangle, Play, Pause, Trash2, Download } from 'lucide-react';
 import './App.css';
 
 type TabView = '3d' | 'map' | 'raw';
@@ -24,6 +24,10 @@ function App() {
 
   // CRÍTICO: Estado de React para forzar re-renders
   const [telemetryData, setTelemetryData] = useState<TelemetryData | null>(null);
+  
+  // NUEVO: Timestamp del último update de UI (Throttle)
+  const lastUIUpdateRef = useRef<number>(0);
+  const UI_UPDATE_INTERVAL = 100; // 100ms = 10 Hz
 
   const { currentPos, trajectory, clearTrajectory } = useTrajectory(telemetryData);
   
@@ -35,6 +39,9 @@ function App() {
   const [isSimulating, setIsSimulating] = useState(false);
   const simulationStartTimeRef = useRef<number>(0);
   const dbWorkerRef = useRef<Worker | null>(null);
+  
+  // NUEVO: Estadísticas de packets guardados
+  const [totalPacketsSaved, setTotalPacketsSaved] = useState(0);
 
   // Inicializar Worker para simulación
   useEffect(() => {
@@ -44,12 +51,16 @@ function App() {
     );
 
     dbWorkerRef.current.onmessage = (event) => {
-      const { type, error: workerError } = event.data;
+      const { type, count, totalSaved, error: workerError } = event.data;
       
       if (type === 'ERROR') {
         console.error('DB Worker Error:', workerError);
       } else if (type === 'BATCH_SAVED') {
-        console.log('Batch guardado en IndexedDB');
+        console.log(`Batch guardado: ${count} paquetes (Total: ${totalSaved})`);
+        setTotalPacketsSaved(totalSaved);
+      } else if (type === 'FLUSH_COMPLETE') {
+        console.log(`Flush completo: ${count} paquetes (Total: ${totalSaved})`);
+        setTotalPacketsSaved(totalSaved);
       }
     };
 
@@ -96,24 +107,27 @@ function App() {
     };
   }, [isSimulating, latestDataRef]);
 
-  // ===== MODO SERIAL: Sincronizar datos desde useSerial =====
+  // ===== MODO SERIAL: Sincronizar datos desde useSerial con THROTTLE =====
   useEffect(() => {
     if (!isConnected || isSimulating) return;
 
-    // Usar requestAnimationFrame para mantener UI fluida (60 FPS)
     let animationFrameId: number;
 
     const syncSerialData = () => {
-      if (latestDataRef.current) {
-        // Actualizar estado de React con los datos del serial
-        setTelemetryData(latestDataRef.current);
+      const now = Date.now();
+      
+      // THROTTLE: Solo actualizar UI cada 100ms (10 Hz)
+      if (now - lastUIUpdateRef.current >= UI_UPDATE_INTERVAL) {
+        if (latestDataRef.current) {
+          setTelemetryData(latestDataRef.current);
+          lastUIUpdateRef.current = now;
+        }
       }
       
-      // Continuar el loop
+      // Continuar loop a 60 FPS (para mantener fluidez)
       animationFrameId = requestAnimationFrame(syncSerialData);
     };
 
-    // Iniciar el loop
     animationFrameId = requestAnimationFrame(syncSerialData);
 
     return () => {
@@ -123,6 +137,9 @@ function App() {
 
   const handleConnect = async () => {
     await connect(selectedBaudRate);
+    // Resetear contador al conectar
+    dbWorkerRef.current?.postMessage({ type: 'RESET_STATS' });
+    setTotalPacketsSaved(0);
   };
 
   const toggleSimulation = () => {
@@ -139,6 +156,9 @@ function App() {
       clearTrajectory();
       // Resetear la telemetría
       setTelemetryData(null);
+      // Resetear contador
+      dbWorkerRef.current?.postMessage({ type: 'RESET_STATS' });
+      setTotalPacketsSaved(0);
     }
     
     setIsSimulating(!isSimulating);
@@ -159,10 +179,9 @@ function App() {
     const confirmed = window.confirm(
       '¿ESTÁS SEGURO?\n\n' +
       'Esta acción borrará:\n' +
-      '• Todo el historial de vuelo guardado\n' +
-      '• Todas las misiones anteriores\n' +
-      '• Los datos de telemetría almacenados\n\n' +
-      'La página se recargará automáticamente.\n\n' +
+      `• ${totalPacketsSaved} paquetes guardados\n` +
+      '• Todo el historial de vuelo\n' +
+      '• Todas las misiones anteriores\n\n' +
       'ESTA ACCIÓN NO SE PUEDE DESHACER'
     );
 
@@ -200,6 +219,54 @@ function App() {
     }
   };
 
+  // NUEVO: Exportar datos completos desde IndexedDB
+  const handleExportData = async () => {
+    try {
+      // Importar dinámicamente el servicio de exportación
+      const { getAllMissionData } = await import('./services/indexedDBService');
+      
+      alert('Generando archivo CSV...\n\nEsto puede tomar unos segundos si hay muchos datos.');
+      
+      const allData = await getAllMissionData();
+      
+      if (allData.length === 0) {
+        alert('No hay datos para exportar.\n\nRealiza un vuelo primero.');
+        return;
+      }
+
+      // Generar CSV
+      const firstRecord = allData[0];
+      if (!firstRecord) {
+        alert('Error: datos corruptos.');
+        return;
+      }
+      
+      const headers = Object.keys(firstRecord).join(',');
+      const rows = allData.map(row => 
+        Object.values(row).map(val => 
+          typeof val === 'number' ? val.toFixed(6) : val
+        ).join(',')
+      );
+      
+      const csv = [headers, ...rows].join('\n');
+      
+      // Descargar archivo
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `mission_data_${Date.now()}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+      
+      alert(`Exportación completa!\n\n${allData.length} paquetes exportados.`);
+      
+    } catch (error) {
+      console.error('Error al exportar:', error);
+      alert('Error al exportar datos.');
+    }
+  };
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'map':
@@ -226,6 +293,9 @@ function App() {
           <div className="tab-content tab-terminal">
             <div className="terminal-header">
               <span className="terminal-title flex items-center gap-2"><Terminal className="w-4 h-4" /> Terminal de Datos Crudos</span>
+              <span className="text-xs text-gray-400">
+                Mostrando último paquete (actualización cada 100ms)
+              </span>
             </div>
             <div className="terminal-body">
               {telemetryData ? (
@@ -287,9 +357,15 @@ function App() {
           {(isConnected || isSimulating) && (
             <div className="header-stats">
               <div className="stat-badge">
-                <span className="stat-label">PKT</span>
+                <span className="stat-label">PKT RX</span>
                 <span className="stat-value">
                   {telemetryData?.packet_id ?? stats.packetsReceived}
+                </span>
+              </div>
+              <div className="stat-badge">
+                <span className="stat-label">PKT DB</span>
+                <span className="stat-value">
+                  {totalPacketsSaved}
                 </span>
               </div>
               <div className="stat-badge">
@@ -327,24 +403,47 @@ function App() {
                 <Play className="w-4 h-4" /> MODO DEMO
               </button>
               <button 
+                className="btn-export flex items-center gap-2" 
+                onClick={handleExportData}
+                title="Exportar datos completos a CSV"
+              >
+                <Download className="w-4 h-4" /> EXPORTAR
+              </button>
+              <button 
                 className="btn-purge flex items-center gap-2" 
                 onClick={handleClearDatabase}
-                title="Purgar base de datos (ELIMINA TODO EL HISTORIAL)"
+                title="Purgar base de datos"
               >
                 <Trash2 className="w-4 h-4" /> PURGAR DB
               </button>
             </div>
           ) : isConnected ? (
-            <button className="btn-disconnect flex items-center gap-2" onClick={disconnect}>
-              <WifiOff className="w-4 h-4" /> DESCONECTAR
-            </button>
+            <>
+              <button 
+                className="btn-export flex items-center gap-2" 
+                onClick={handleExportData}
+              >
+                <Download className="w-4 h-4" /> EXPORTAR
+              </button>
+              <button className="btn-disconnect flex items-center gap-2" onClick={disconnect}>
+                <WifiOff className="w-4 h-4" /> DESCONECTAR
+              </button>
+            </>
           ) : (
-            <button 
-              className="btn-stop-simulate flex items-center gap-2" 
-              onClick={toggleSimulation}
-            >
-              <Pause className="w-4 h-4" /> DETENER DEMO
-            </button>
+            <>
+              <button 
+                className="btn-export flex items-center gap-2" 
+                onClick={handleExportData}
+              >
+                <Download className="w-4 h-4" /> EXPORTAR
+              </button>
+              <button 
+                className="btn-stop-simulate flex items-center gap-2" 
+                onClick={toggleSimulation}
+              >
+                <Pause className="w-4 h-4" /> DETENER DEMO
+              </button>
+            </>
           )}
 
           <button 
@@ -417,7 +516,8 @@ function App() {
               <span>
                 T+{telemetryData.mission_time.toFixed(1)}s · 
                 ALT: {telemetryData.altitude.toFixed(0)}m · 
-                VEL: {telemetryData.velocity_z.toFixed(1)}m/s
+                VEL: {telemetryData.velocity_z.toFixed(1)}m/s · 
+                DB: {totalPacketsSaved} pkts
               </span>
             </>
           )}
