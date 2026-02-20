@@ -2,13 +2,16 @@ import { openDB, IDBPDatabase } from 'idb';
 import { TelemetryData } from '../types/Telemetry';
 
 const DB_NAME = 'RocketMissionDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // INCREMENTADO: Cambio de schema (keyPath timestamp -> packet_id)
 const STORE_NAME = 'telemetry';
 
 let dbInstance: IDBPDatabase | null = null;
 
 /**
  * Inicializa la base de datos IndexedDB
+ * 
+ * CRÍTICO: Usa packet_id como keyPath (único e incremental)
+ * timestamp NO funciona con 400Hz (múltiples paquetes por millisegundo)
  */
 export async function initDB(): Promise<IDBPDatabase> {
   if (dbInstance) {
@@ -16,9 +19,15 @@ export async function initDB(): Promise<IDBPDatabase> {
   }
 
   dbInstance = await openDB(DB_NAME, DB_VERSION, {
-    upgrade(db) {
+    upgrade(db, oldVersion) {
+      // Si existe el store viejo con timestamp, borrarlo
+      if (oldVersion < 2 && db.objectStoreNames.contains(STORE_NAME)) {
+        db.deleteObjectStore(STORE_NAME);
+      }
+      
+      // Crear nuevo store con packet_id como key (único)
       if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: 'timestamp' });
+        db.createObjectStore(STORE_NAME, { keyPath: 'packet_id' });
       }
     },
   });

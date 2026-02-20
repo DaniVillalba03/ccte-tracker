@@ -32,10 +32,12 @@ self.onmessage = async (event: MessageEvent) => {
           
           buffer = []; // Limpiar buffer
         } catch (error) {
+          console.error('❌ Error guardando batch:', error);
           self.postMessage({ 
             type: 'ERROR', 
-            error: error instanceof Error ? error.message : 'Unknown error' 
+            error: error instanceof Error ? error.message : 'Unknown error saving batch'
           });
+          // CRÍTICO: No limpiar buffer si falla, reintentar en próximo flush
         }
       }
       break;

@@ -183,6 +183,11 @@ function App() {
     try {
       const stats = await getDatabaseStats();
       
+      if (stats.totalRecords === 0) {
+        alert('La base de datos ya está vacía.\n\nNo hay datos para purgar.');
+        return;
+      }
+      
       // Confirmación doble para evitar borrado accidental
       const confirmed = window.confirm(
         '¿ESTÁS SEGURO?\n\n' +
@@ -208,7 +213,7 @@ function App() {
 
       deleteRequest.onerror = (event) => {
         console.error('Error al borrar la base de datos:', event);
-        alert('Error al purgar la base de datos.');
+        alert('Error al purgar la base de datos.\n\nIntenta cerrar otras pestañas de la aplicación.');
       };
 
       deleteRequest.onblocked = () => {
@@ -218,7 +223,8 @@ function App() {
 
     } catch (error) {
       console.error('Error inesperado al purgar:', error);
-      alert('Error inesperado al purgar la base de datos.');
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      alert(`Error al purgar la base de datos:\n\n${errorMessage}`);
     }
   };
 
@@ -230,7 +236,7 @@ function App() {
       const stats = await getDatabaseStats();
       
       if (stats.totalRecords === 0) {
-        alert('No hay datos para exportar.\n\nRealiza un vuelo primero.');
+        alert('No hay datos para exportar.\n\nInicia una simulación primero haciendo clic en "MODO DEMO".');
         return;
       }
       
@@ -249,7 +255,8 @@ function App() {
       
     } catch (error) {
       console.error('Error al exportar:', error);
-      alert('Error al exportar datos.');
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      alert(`Error al exportar datos:\n\n${errorMessage}\n\nRevisa la consola para más detalles.`);
     }
   };
 

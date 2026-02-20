@@ -2,6 +2,7 @@ import { openDB } from 'idb';
 import { TelemetryData } from '../types/Telemetry';
 
 const DB_NAME = 'RocketMissionDB';
+const DB_VERSION = 2; // SINCRONIZADO con indexedDBService
 const STORE_NAME = 'telemetry';
 const CHUNK_SIZE = 5000; // Leer 5,000 registros por lote
 
@@ -18,7 +19,21 @@ export async function exportTelemetryToCSV(): Promise<void> {
   try {
     console.log('🚀 Iniciando exportación chunked...');
     
-    const db = await openDB(DB_NAME, 1);
+    // Abrir DB con upgrade handler
+    const db = await openDB(DB_NAME, DB_VERSION, {
+      upgrade(db, oldVersion) {
+        // Si existe el store viejo con timestamp, borrarlo
+        if (oldVersion < 2 && db.objectStoreNames.contains(STORE_NAME)) {
+          db.deleteObjectStore(STORE_NAME);
+        }
+        
+        // Crear nuevo store con packet_id como key (único)
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          db.createObjectStore(STORE_NAME, { keyPath: 'packet_id' });
+        }
+      },
+    });
+    
     const tx = db.transaction(STORE_NAME, 'readonly');
     const store = tx.objectStore(STORE_NAME);
     
@@ -27,15 +42,13 @@ export async function exportTelemetryToCSV(): Promise<void> {
     console.log(`📊 Total de registros: ${totalRecords}`);
     
     if (totalRecords === 0) {
-      alert('No hay datos para exportar');
-      return;
+      throw new Error('No hay datos para exportar');
     }
     
     // Obtener el primer registro para sacar los headers
     const allKeys = await store.getAllKeys();
     if (allKeys.length === 0) {
-      alert('No hay datos para exportar');
-      return;
+      throw new Error('No hay datos para exportar');
     }
     
     const firstRecord = await store.get(allKeys[0]!);
@@ -113,13 +126,50 @@ export async function getDatabaseStats(): Promise<{
   lastTimestamp: number | null;
   estimatedSizeMB: number;
 }> {
-  const db = await openDB(DB_NAME, 1);
-  const tx = db.transaction(STORE_NAME, 'readonly');
-  const store = tx.objectStore(STORE_NAME);
-  
-  const totalRecords = await store.count();
-  
-  if (totalRecords === 0) {
+  try {
+    const db = await openDB(DB_NAME, DB_VERSION, {
+      upgrade(db, oldVersion) {
+        // Si existe el store viejo con timestamp, borrarlo
+        if (oldVersion < 2 && db.objectStoreNames.contains(STORE_NAME)) {
+          db.deleteObjectStore(STORE_NAME);
+        }
+        
+        // Crear nuevo store con packet_id como key (único)
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          db.createObjectStore(STORE_NAME, { keyPath: 'packet_id' });
+        }
+      },
+    });
+    
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const store = tx.objectStore(STORE_NAME);
+    
+    const totalRecords = await store.count();
+    
+    if (totalRecords === 0) {
+      return {
+        totalRecords: 0,
+        firstTimestamp: null,
+        lastTimestamp: null,
+        estimatedSizeMB: 0
+      };
+    }
+    
+    const keys = await store.getAllKeys();
+    const firstTimestamp = keys[0] as number;
+    const lastTimestamp = keys[keys.length - 1] as number;
+    
+    // Estimar tamaño (cada registro ~ 500 bytes promedio)
+    const estimatedSizeMB = (totalRecords * 500) / (1024 * 1024);
+    
+    return {
+      totalRecords,
+      firstTimestamp,
+      lastTimestamp,
+      estimatedSizeMB
+    };
+  } catch (error) {
+    console.error('Error al obtener estadísticas:', error);
     return {
       totalRecords: 0,
       firstTimestamp: null,
@@ -127,18 +177,4 @@ export async function getDatabaseStats(): Promise<{
       estimatedSizeMB: 0
     };
   }
-  
-  const keys = await store.getAllKeys();
-  const firstTimestamp = keys[0] as number;
-  const lastTimestamp = keys[keys.length - 1] as number;
-  
-  // Estimar tamaño (cada registro ~ 500 bytes promedio)
-  const estimatedSizeMB = (totalRecords * 500) / (1024 * 1024);
-  
-  return {
-    totalRecords,
-    firstTimestamp,
-    lastTimestamp,
-    estimatedSizeMB
-  };
 }
