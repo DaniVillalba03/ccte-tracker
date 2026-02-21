@@ -2,6 +2,7 @@ import { useMemo, useRef, useEffect } from 'react';
 import { TelemetryData, SensorDefinition } from '../../types/Telemetry';
 import { AVAILABLE_SENSORS } from '../../config/sensors';
 import { formatMissionState } from '../../utils/dataParsing';
+import { AttitudeIndicator } from './AttitudeIndicator';
 import { Line } from 'react-chartjs-2';
 import { PauseCircle, Zap, Rocket, Target, ArrowUpCircle, CloudRain, CheckCircle, XCircle, HelpCircle, AlertTriangle } from 'lucide-react';
 import {
@@ -232,6 +233,13 @@ export function SensorWidget({ sensorId, data }: SensorWidgetProps) {
               </div>
             )}
           </div>
+        </div>
+      );
+
+    case 'attitude':
+      return (
+        <div className="widget-container widget-attitude">
+          <AttitudeIndicator data={data} />
         </div>
       );
 

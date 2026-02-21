@@ -235,6 +235,17 @@ export const AVAILABLE_SENSORS: Record<string, SensorDefinition> = {
     widgetType: 'text',
     color: '#feca57'
   },
+
+  // ========== HORIZONTE ARTIFICIAL ==========
+  attitude_indicator: {
+    id: 'attitude_indicator',
+    name: 'Horizonte Artificial',
+    unit: '',
+    min: -90,
+    max: 90,
+    widgetType: 'attitude',
+    color: '#00ff88'
+  },
 };
 
 /**
@@ -275,6 +286,9 @@ export const DEFAULT_LAYOUT = [
   { i: 'gps_alt', x: 6, y: 12, w: 2, h: 2 },
   { i: 'acc_x', x: 0, y: 12, w: 2, h: 2 },
   { i: 'acc_y', x: 2, y: 12, w: 2, h: 2 },
+
+  // Horizonte Artificial: 3 columnas × 4 filas
+  { i: 'attitude_indicator', x: 8, y: 12, w: 3, h: 4 },
 ];
 
 /**

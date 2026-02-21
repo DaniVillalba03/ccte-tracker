@@ -132,7 +132,7 @@ export interface SensorDefinition {
   max: number;
   
   /** Tipo de widget para visualización */
-  widgetType: 'gauge' | 'lineChart' | 'text' | 'status';
+  widgetType: 'gauge' | 'lineChart' | 'text' | 'status' | 'attitude';
   
   /** Umbral de advertencia (opcional) */
   warningThreshold?: number;
