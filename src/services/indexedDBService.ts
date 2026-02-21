@@ -37,13 +37,15 @@ export async function initDB(): Promise<IDBPDatabase> {
 
 /**
  * Guarda un lote de datos de telemetría en una sola transacción
+ * Usa put() en lugar de add() para sobrescribir datos existentes y evitar errores de clave duplicada
  */
 export async function saveBatch(data: TelemetryData[]): Promise<void> {
   const db = await initDB();
   const tx = db.transaction(STORE_NAME, 'readwrite');
   const store = tx.objectStore(STORE_NAME);
 
-  await Promise.all(data.map(record => store.add(record)));
+  // Usar put() en lugar de add() para permitir sobrescritura
+  await Promise.all(data.map(record => store.put(record)));
   await tx.done;
 }
 

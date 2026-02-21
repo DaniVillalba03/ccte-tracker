@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Dashboard } from './components/dashboard/Dashboard';
 import { TrackingMap } from './components/map/TrackingMap';
 import { Scene3D } from './components/3d/Scene3D';
+import { DualLinkPanel } from './components/widgets/DualLinkPanel';
 import { useSerial } from './hooks/useSerial';
 import { useTrajectory } from './hooks/useTrajectory';
 import { generateFakeTelemetry, resetSimulation, getMotorInterval } from './utils/simulation';
@@ -20,7 +21,9 @@ function App() {
     disconnect, 
     error, 
     stats, 
-    currentBaudRate 
+    currentBaudRate,
+    isHighSpeedActive,
+    isLoraActive
   } = useSerial();
 
   // CRÍTICO: Solo guardamos el ÚLTIMO dato (no historial)
@@ -35,13 +38,17 @@ function App() {
   const { currentPos, trajectory, clearTrajectory } = useTrajectory(telemetryData);
   
   const [activeTab, setActiveTab] = useState<TabView>('map');
-  const [selectedBaudRate, setSelectedBaudRate] = useState(115200);
+  const [selectedBaudRate, setSelectedBaudRate] = useState(500000);
   const [showSidebar, setShowSidebar] = useState(true);
   
   // ===== MODO SIMULACIÓN =====
   const [isSimulating, setIsSimulating] = useState(false);
   const simulationStartTimeRef = useRef<number>(0);
   const dbWorkerRef = useRef<Worker | null>(null);
+  
+  // NUEVO: Estados simulados de heartbeat independientes
+  const [simHighSpeedActive, setSimHighSpeedActive] = useState(false);
+  const [simLoraActive, setSimLoraActive] = useState(false);
   
   // NUEVO: Estadísticas de packets guardados
   const [totalPacketsSaved, setTotalPacketsSaved] = useState(0);
@@ -83,6 +90,33 @@ function App() {
     
     const interval = setInterval(() => {
       const elapsedSeconds = (Date.now() - simulationStartTimeRef.current) / 1000;
+      
+      // SIMULACIÓN DE PÉRDIDA DE SEÑAL DINÁMICA
+      // Segundos 0-5: Ambos activos
+      // Segundos 5-10: Solo LoRa (High-Speed pierde señal)
+      // Segundos 10-15: Ambos activos de nuevo
+      // Segundos 15-20: Solo High-Speed (LoRa pierde señal)
+      // Repite cada 20 segundos
+      
+      const phase = Math.floor(elapsedSeconds) % 20;
+      
+      if (phase < 5) {
+        // Fase 1: Ambos activos
+        setSimHighSpeedActive(true);
+        setSimLoraActive(true);
+      } else if (phase < 10) {
+        // Fase 2: Solo LoRa
+        setSimHighSpeedActive(false);
+        setSimLoraActive(true);
+      } else if (phase < 15) {
+        // Fase 3: Ambos activos
+        setSimHighSpeedActive(true);
+        setSimLoraActive(true);
+      } else {
+        // Fase 4: Solo High-Speed
+        setSimHighSpeedActive(true);
+        setSimLoraActive(false);
+      }
       
       // Generar paquete de telemetría a 400Hz
       const { data, needsUIUpdate } = generateFakeTelemetry(elapsedSeconds);
@@ -321,11 +355,18 @@ function App() {
           />
           <div className="brand-info">
             <h1 className="brand-title">CCTE TRACKER</h1>
-            <p className="brand-subtitle">Ground Station · Offline First</p>
+            <p className="brand-subtitle">Ground Station · Dual Link</p>
           </div>
         </div>
 
         <div className="header-status">
+          {/* NUEVO: Panel de Monitoreo Dual de Enlaces */}
+          <DualLinkPanel 
+            isHighSpeedActive={isSimulating ? simHighSpeedActive : isHighSpeedActive}
+            isLoraActive={isSimulating ? simLoraActive : isLoraActive}
+            isSystemActive={isConnected || isSimulating}
+          />
+
           <div className="status-indicator-group">
             {isConnected ? (
               <Wifi className="w-5 h-5 text-green-500" />
@@ -385,6 +426,7 @@ function App() {
                 <option value={57600}>57600</option>
                 <option value={115200}>115200</option>
                 <option value={230400}>230400</option>
+                <option value={500000}>500000</option>
               </select>
               <button className="btn-connect flex items-center gap-2" onClick={handleConnect}>
                 <Usb className="w-4 h-4" /> CONECTAR

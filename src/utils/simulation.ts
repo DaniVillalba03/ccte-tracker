@@ -350,12 +350,12 @@ export function resetSimulation() {
  * Calcula presión atmosférica según altitud (fórmula barométrica)
  */
 function calculatePressure(altitude: number): number {
-  const P0 = 101325; // Presión al nivel del mar (Pa)
-  const T0 = 288.15; // Temperatura al nivel del mar (K)
-  const g = 9.80665; // Gravedad
-  const M = 0.0289644; // Masa molar del aire (kg/mol)
-  const R = 8.31432; // Constante de gases ideales
+  const P0 = 1013.25; // Presión al nivel del mar (hPa)
   const L = 0.0065; // Gradiente térmico (K/m)
+  const T0 = 288.15; // Temperatura al nivel del mar (K)
+  const g = 9.80665; // Gravedad (m/s²)
+  const M = 0.0289644; // Masa molar del aire (kg/mol)
+  const R = 8.31447; // Constante de gases ideales (J/(mol·K))
   
   return P0 * Math.pow(1 - (L * altitude) / T0, (g * M) / (R * L));
 }

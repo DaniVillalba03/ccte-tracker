@@ -17,7 +17,7 @@ const CHUNK_SIZE = 5000; // Leer 5,000 registros por lote
  */
 export async function exportTelemetryToCSV(): Promise<void> {
   try {
-    console.log('🚀 Iniciando exportación chunked...');
+    console.log('[EXPORT] Iniciando exportación chunked...');
     
     // Abrir DB con upgrade handler
     const db = await openDB(DB_NAME, DB_VERSION, {
@@ -39,7 +39,7 @@ export async function exportTelemetryToCSV(): Promise<void> {
     
     // Obtener el total de registros
     const totalRecords = await store.count();
-    console.log(`📊 Total de registros: ${totalRecords}`);
+    console.log(`[EXPORT] Total de registros: ${totalRecords}`);
     
     if (totalRecords === 0) {
       throw new Error('No hay datos para exportar');
@@ -85,7 +85,7 @@ export async function exportTelemetryToCSV(): Promise<void> {
         csvChunks.push(...chunkBuffer);
         chunkBuffer = [];
         
-        console.log(`✅ Procesados: ${recordsProcessed}/${totalRecords} (${((recordsProcessed/totalRecords)*100).toFixed(1)}%)`);
+        console.log(`[EXPORT] Procesados: ${recordsProcessed}/${totalRecords} (${((recordsProcessed/totalRecords)*100).toFixed(1)}%)`);
       }
       
       cursor = await cursor.continue();
@@ -94,7 +94,7 @@ export async function exportTelemetryToCSV(): Promise<void> {
     // Agregar el último chunk (si quedaron registros)
     if (chunkBuffer.length > 0) {
       csvChunks.push(...chunkBuffer);
-      console.log(`✅ Procesados: ${recordsProcessed}/${totalRecords} (100%)`);
+      console.log(`[EXPORT] Procesados: ${recordsProcessed}/${totalRecords} (100%)`);
     }
     
     // Generar el CSV completo
@@ -109,10 +109,10 @@ export async function exportTelemetryToCSV(): Promise<void> {
     link.click();
     URL.revokeObjectURL(url);
     
-    console.log(`✅ Exportación completa: ${recordsProcessed} registros`);
+    console.log(`[EXPORT] Complete: ${recordsProcessed} registros`);
     
   } catch (error) {
-    console.error('❌ Error al exportar:', error);
+    console.error('[ERROR] Error al exportar:', error);
     throw error;
   }
 }
