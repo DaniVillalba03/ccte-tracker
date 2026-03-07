@@ -87,8 +87,8 @@ CCTE TRACKER follows an **Offline-First Architecture** to ensure mission reliabi
 ┌─────────────────────────────────────────────────────────┐
 │                     BUSINESS LOGIC                      │
 │  ┌──────────────────┐       ┌────────────────────────┐  │
-│  │  useSerial Hook  │◄─────►│  useTelemetry Hook    │   │
-│  │  (Web Serial API)│       │  (State Management)   │   │
+│  │  useSerial Hook  │◄─────►│  useTelemetry Hook     │  │
+│  │  (Web Serial API)│       │  (State Management)    │  │
 │  └──────────────────┘       └────────────────────────┘  │
 │                                       │                 │
 │  ┌──────────────────┐                │                  │
