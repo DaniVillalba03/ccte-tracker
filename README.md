@@ -76,43 +76,43 @@ CCTE TRACKER follows an **Offline-First Architecture** to ensure mission reliabi
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    PRESENTATION LAYER                     │
-│  ┌─────────────┐  ┌──────────────┐  ┌───────────────┐  │
-│  │  Dashboard  │  │  3D Viewer   │  │  Trajectory   │  │
-│  │  (Widgets)  │  │  (CSS3D)     │  │  Map (Leaflet)│  │
-│  └─────────────┘  └──────────────┘  └───────────────┘  │
+│                    PRESENTATION LAYER                   │
+│  ┌─────────────┐  ┌──────────────┐  ┌───────────────┐   │
+│  │  Dashboard  │  │  3D Viewer   │  │  Trajectory   │   │
+│  │  (Widgets)  │  │  (CSS3D)     │  │  Map (Leaflet)│   │
+│  └─────────────┘  └──────────────┘  └───────────────┘   │
 └─────────────────────────────────────────────────────────┘
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────┐
-│                     BUSINESS LOGIC                        │
+│                     BUSINESS LOGIC                      │
 │  ┌──────────────────┐       ┌────────────────────────┐  │
-│  │  useSerial Hook  │◄─────►│  useTelemetry Hook    │  │
-│  │  (Web Serial API)│       │  (State Management)   │  │
+│  │  useSerial Hook  │◄─────►│  useTelemetry Hook    │   │
+│  │  (Web Serial API)│       │  (State Management)   │   │
 │  └──────────────────┘       └────────────────────────┘  │
-│                                       │                   │
-│  ┌──────────────────┐                │                   │
-│  │ Simulation Engine│                │                   │
-│  │ (Physics Model)  │                │                   │
-│  └──────────────────┘                │                   │
+│                                       │                 │
+│  ┌──────────────────┐                │                  │
+│  │ Simulation Engine│                │                  │
+│  │ (Physics Model)  │                │                  │
+│  └──────────────────┘                │                  │
 └─────────────────────────────────────────────────────────┘
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────┐
-│                   PERSISTENCE LAYER                       │
+│                   PERSISTENCE LAYER                     │
 │  ┌──────────────────────────────────────────────────┐   │
 │  │             IndexedDB (RocketMissionDB)          │   │
 │  │  • Telemetry chunks at 400Hz (batch writes)      │   │
-│  │  • Mission metadata                               │   │
-│  │  • Trajectory history                             │   │
+│  │  • Mission metadata                              │   │
+│  │  • Trajectory history                            │   │
 │  └──────────────────────────────────────────────────┘   │
-│                            ▲                              │
-│                            │                              │
+│                            ▲                            │
+│                            │                            │
 │  ┌──────────────────────────────────────────────────┐   │
 │  │         Web Worker (Background Processing)       │   │
 │  │  • Non-blocking I/O operations                   │   │
 │  │  • Batch processing (100 samples/write)          │   │
-│  │  • Export data generation                         │   │
+│  │  • Export data generation                        │   │
 │  └──────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────┘
 ```
