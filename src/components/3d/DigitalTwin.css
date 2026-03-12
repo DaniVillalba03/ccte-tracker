@@ -1,0 +1,80 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   DigitalTwin.css
+   Visor 3D del cohete — tema oscuro Navy coherente con el dashboard.
+═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Wrapper del canvas ──────────────────────────────────────────────── */
+.digital-twin-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 340px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #07091a 0%, #0f1228 60%, #0a0e27 100%);
+  border: 1px solid rgba(0, 255, 136, 0.18);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.6),
+    0 8px 32px rgba(0, 0, 0, 0.55),
+    inset 0 0 60px rgba(0, 10, 40, 0.4);
+}
+
+/* Three.js inyecta un <canvas> directamente — que ocupe el contenedor */
+.digital-twin-container > canvas {
+  display: block;
+  width: 100%  !important;
+  height: 100% !important;
+}
+
+/* ── Overlay de actitud ──────────────────────────────────────────────── */
+.dt-overlay {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 4px 14px;
+  border-radius: 20px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(0, 255, 136, 0.25);
+  backdrop-filter: blur(6px);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.dt-label {
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.6);
+  font-variant-numeric: tabular-nums;
+}
+
+.dt-label strong {
+  color: #00ff88;
+  font-weight: 700;
+  font-size: 0.72rem;
+  margin-left: 3px;
+}
+
+.dt-sep {
+  color: rgba(255, 255, 255, 0.2);
+  font-size: 0.8rem;
+}
+
+.dt-engine-on {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #ff6a00;
+  text-shadow: 0 0 8px rgba(255, 106, 0, 0.8);
+  animation: dt-engine-pulse 0.4s ease-in-out infinite alternate;
+}
+
+@keyframes dt-engine-pulse {
+  from { opacity: 0.72; }
+  to   { opacity: 1.00; }
+}
