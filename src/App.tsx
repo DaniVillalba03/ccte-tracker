@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { Dashboard } from './components/dashboard/Dashboard';
 import { TrackingMap } from './components/map/TrackingMap';
-import { Scene3D } from './components/3d/Scene3D';
+import { DigitalTwin } from './components/3d/DigitalTwin';
 import { DualLinkPanel } from './components/widgets/DualLinkPanel';
 import { useSerial } from './hooks/useSerial';
 import { useTrajectory } from './hooks/useTrajectory';
 import { generateFakeTelemetry, resetSimulation, getMotorInterval } from './utils/simulation';
 import { exportTelemetryToCSV, getDatabaseStats } from './services/exportService';
+import { pushTelemetry } from './services/relaySocket';
 import { TelemetryData } from './types/Telemetry';
 import { Wifi, WifiOff, Usb, Map, Box, Terminal, ChevronRight, ChevronLeft, AlertTriangle, Play, Pause, Trash2, Download } from 'lucide-react';
 import './App.css';
@@ -23,17 +24,15 @@ function App() {
     stats, 
     currentBaudRate,
     isHighSpeedActive,
-    isLoraActive
+    isLoraActive,
+    serialTelemetry,
   } = useSerial();
 
   // CRÍTICO: Solo guardamos el ÚLTIMO dato (no historial)
   // React NO debe guardar el historial completo (consume GB de RAM)
   // El historial se guarda en IndexedDB mediante fire-and-forget
   const [telemetryData, setTelemetryData] = useState<TelemetryData | null>(null);
-  
-  // NUEVO: Timestamp del último update de UI (Throttle)
-  const lastUIUpdateRef = useRef<number>(0);
-  const UI_UPDATE_INTERVAL = 100; // 100ms = 10 Hz
+
 
   const { currentPos, trajectory, clearTrajectory } = useTrajectory(telemetryData);
   
@@ -44,6 +43,7 @@ function App() {
   // ===== MODO SIMULACIÓN =====
   const [isSimulating, setIsSimulating] = useState(false);
   const simulationStartTimeRef = useRef<number>(0);
+  const lastSimRelayRef = useRef<number>(0); // throttle relay en sim (30 Hz)
   const dbWorkerRef = useRef<Worker | null>(null);
   
   // NUEVO: Estados simulados de heartbeat independientes
@@ -133,6 +133,16 @@ function App() {
         latestDataRef.current = data;
       }
 
+      // RELAY: Emitir a espectadores SSE a 30 Hz (~33ms)
+      const nowRelay = Date.now();
+      if (nowRelay - lastSimRelayRef.current >= 33) {
+        // link_hs/link_lora se calculan directo desde phase (evita stale closure de useState)
+        const hsActive   = phase < 5 || phase >= 10; // activo en fases 0-4, 10-19
+        const loraActive = phase < 15;               // activo en fases 0-14
+        pushTelemetry({ ...data, link_hs: hsActive, link_lora: loraActive, link_system_active: true });
+        lastSimRelayRef.current = nowRelay;
+      }
+
       // Detener simulación después de 3 minutos
       if (elapsedSeconds > 180) {
         setIsSimulating(false);
@@ -145,33 +155,39 @@ function App() {
     };
   }, [isSimulating, latestDataRef]);
 
-  // ===== MODO SERIAL: Sincronizar datos desde useSerial con THROTTLE =====
+  // ===== MODO ESPECTADOR: recibir telemetría vía SSE =====
+  // Solo activo cuando este dispositivo NO tiene serial activo NI simulación.
+  useEffect(() => {
+    if (isConnected || isSimulating) return;
+
+    const es = new EventSource('/relay/stream');
+
+    es.onmessage = (e: MessageEvent) => {
+      try {
+        const incoming: TelemetryData = JSON.parse(e.data);
+        latestDataRef.current = incoming;
+        setTelemetryData(incoming);
+      } catch {
+        // ignorar paquetes malformados
+      }
+    };
+
+    es.onerror = () => {
+      console.warn('[RELAY] SSE stream error — reconectando automáticamente...');
+    };
+
+    return () => es.close();
+  }, [isConnected, isSimulating, latestDataRef]);
+
+  // ===== MODO SERIAL: sincronizar serialTelemetry (state de useSerial, 30 Hz) =====
+  // serialTelemetry ya viene throttleado desde el read loop — no necesita RAF.
   useEffect(() => {
     if (!isConnected || isSimulating) return;
-
-    let animationFrameId: number;
-
-    const syncSerialData = () => {
-      const now = Date.now();
-      
-      // THROTTLE: Solo actualizar UI cada 100ms (10 Hz)
-      if (now - lastUIUpdateRef.current >= UI_UPDATE_INTERVAL) {
-        if (latestDataRef.current) {
-          setTelemetryData(latestDataRef.current);
-          lastUIUpdateRef.current = now;
-        }
-      }
-      
-      // Continuar loop a 60 FPS (para mantener fluidez)
-      animationFrameId = requestAnimationFrame(syncSerialData);
-    };
-
-    animationFrameId = requestAnimationFrame(syncSerialData);
-
-    return () => {
-      cancelAnimationFrame(animationFrameId);
-    };
-  }, [isConnected, isSimulating, latestDataRef]);
+    if (serialTelemetry) {
+      setTelemetryData(serialTelemetry);
+      latestDataRef.current = serialTelemetry;
+    }
+  }, [isConnected, isSimulating, serialTelemetry, latestDataRef]);
 
   const handleConnect = async () => {
     await connect(selectedBaudRate);
@@ -311,7 +327,7 @@ function App() {
       case '3d':
         return (
           <div className="tab-content tab-3d">
-            <Scene3D data={telemetryData} />
+            <DigitalTwin data={telemetryData} />
           </div>
         );
 
@@ -362,9 +378,21 @@ function App() {
         <div className="header-status">
           {/* NUEVO: Panel de Monitoreo Dual de Enlaces */}
           <DualLinkPanel 
-            isHighSpeedActive={isSimulating ? simHighSpeedActive : isHighSpeedActive}
-            isLoraActive={isSimulating ? simLoraActive : isLoraActive}
-            isSystemActive={isConnected || isSimulating}
+            isHighSpeedActive={
+              isConnected && !isSimulating ? isHighSpeedActive
+              : isSimulating              ? simHighSpeedActive
+              : (telemetryData?.link_hs ?? false)
+            }
+            isLoraActive={
+              isConnected && !isSimulating ? isLoraActive
+              : isSimulating              ? simLoraActive
+              : (telemetryData?.link_lora ?? false)
+            }
+            isSystemActive={
+              isConnected || isSimulating
+                ? true
+                : (telemetryData?.link_system_active ?? false)
+            }
           />
 
           <div className="status-indicator-group">

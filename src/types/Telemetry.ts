@@ -82,6 +82,14 @@ export interface TelemetryData {
   
   /** Relación señal-ruido en dB */
   lora_snr: number;
+
+  // ========== ESTADO DE ENLACES (relay SSE) ==========
+  /** true si el enlace High-Speed estaba activo en el momento del envío */
+  link_hs?: boolean;
+  /** true si el enlace LoRa estaba activo en el momento del envío */
+  link_lora?: boolean;
+  /** true si el master tiene serial o simulación activa */
+  link_system_active?: boolean;
 }
 
 /**

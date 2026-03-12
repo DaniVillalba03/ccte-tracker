@@ -1,6 +1,7 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { TelemetryData } from '../types/Telemetry';
 import { parseTelemetryString, validateTelemetryData } from '../utils/dataParsing';
+import { pushTelemetry } from '../services/relaySocket';
 import '../types/web-serial.d.ts';
 
 interface UseSerialReturn {
@@ -12,6 +13,8 @@ interface UseSerialReturn {
   disconnect: () => Promise<void>;
   /** Último dato de telemetría recibido (para UI) */
   latestDataRef: React.MutableRefObject<TelemetryData | null>;
+  /** Dato de telemetría como estado React, actualizado a ~30 Hz desde el read loop */
+  serialTelemetry: TelemetryData | null;
   /** Mensaje de error si existe */
   error: string | null;
   /** Estadísticas de conexión */
@@ -32,7 +35,9 @@ const DEFAULT_BAUD_RATE = 115200;
 const HEARTBEAT_TIMEOUT_MS = 2000; // 2 segundos sin datos = enlace muerto
 
 // ========== CONFIGURACIÓN DE THROTTLING ==========
-const UI_UPDATE_INTERVAL_MS = 33; // 30Hz (cada 33ms)
+const UI_UPDATE_INTERVAL_MS = 33;            // 30 Hz para la UI
+const RELAY_EMIT_INTERVAL_MS = Math.round(1000 / 60); // 60 Hz para el relay (~16 ms)
+const UI_EMIT_INTERVAL_MS = 33;              // 30 Hz para el estado React serialTelemetry
 const DB_BATCH_SIZE = 500; // Tamaño del lote para IndexedDB
 const DB_BATCH_TIMEOUT_MS = 1000; // Flush forzado cada 1 segundo
 const MAX_BUFFER_LENGTH = 10000; // Límite de seguridad para buffer de texto
@@ -44,6 +49,7 @@ export function useSerial(): UseSerialReturn {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentBaudRate, setCurrentBaudRate] = useState<number | null>(null);
+  const [serialTelemetry, setSerialTelemetry] = useState<TelemetryData | null>(null);
   
   // NUEVO: Estados de heartbeat independientes
   const [isHighSpeedActive, setIsHighSpeedActive] = useState(false);
@@ -58,6 +64,10 @@ export function useSerial(): UseSerialReturn {
   const portRef = useRef<SerialPort | null>(null);
   const readerRef = useRef<any>(null);
   const latestDataRef = useRef<TelemetryData | null>(null);
+  // Timestamp del último emit al relay (throttle a 60 Hz)
+  const lastRelayEmitRef = useRef<number>(0);
+  // Timestamp del último setState de serialTelemetry (throttle a 30 Hz)
+  const lastUIEmitRef = useRef<number>(0);
   const dbWorkerRef = useRef<Worker | null>(null);
   const keepReadingRef = useRef(false);
   const lastFullDataRef = useRef<TelemetryData | null>(null);
@@ -422,6 +432,26 @@ export function useSerial(): UseSerialReturn {
                     // ========== ACTUALIZAR REFERENCIA PARA UI (NO RE-RENDER) ==========
                     latestDataRef.current = finalData;
 
+                    // ========== RELAY: PUSH SSE A ESPECTADORES (30 Hz) ==========
+                    const nowRelay = Date.now();
+                    if (nowRelay - lastRelayEmitRef.current >= RELAY_EMIT_INTERVAL_MS) {
+                      pushTelemetry({
+                        ...finalData,
+                        link_hs:            nowRelay - lastHighSpeedTimeRef.current < HEARTBEAT_TIMEOUT_MS,
+                        link_lora:          nowRelay - lastLoraTimeRef.current     < HEARTBEAT_TIMEOUT_MS,
+                        link_system_active: true,
+                      });
+                      lastRelayEmitRef.current = nowRelay;
+                    }
+
+                    // ========== ACTUALIZAR ESTADO REACT (30 Hz) ==========
+                    // Driven by data arrival — no polling needed
+                    const nowUI = Date.now();
+                    if (nowUI - lastUIEmitRef.current >= UI_EMIT_INTERVAL_MS) {
+                      setSerialTelemetry(finalData);
+                      lastUIEmitRef.current = nowUI;
+                    }
+
                     // ========== AGREGAR AL BUFFER DE DB (BATCHING) ==========
                     addToDbBuffer(telemetryData);
 
@@ -505,7 +535,7 @@ export function useSerial(): UseSerialReturn {
       setIsLoraActive(false);
       lastHighSpeedTimeRef.current = 0;
       lastLoraTimeRef.current = 0;
-      
+
       console.log('🔌 Puerto serial desconectado');
     } catch (err) {
       console.error('[ERROR] Error al desconectar:', err);
@@ -527,10 +557,11 @@ export function useSerial(): UseSerialReturn {
     connect,
     disconnect,
     latestDataRef,
+    serialTelemetry,
     error,
     stats,
     currentBaudRate,
-    isHighSpeedActive, // NUEVO
-    isLoraActive,      // NUEVO
+    isHighSpeedActive,
+    isLoraActive,
   };
 }

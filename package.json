@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "relay": "node relay-server.js"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -27,6 +28,8 @@
     "react-dom": "^19.0.0",
     "react-grid-layout": "^2.2.2",
     "react-leaflet": "^4.2.1",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
     "three": "^0.182.0",
     "uuid": "^13.0.0",
     "vite-plugin-pwa": "^1.2.0",
